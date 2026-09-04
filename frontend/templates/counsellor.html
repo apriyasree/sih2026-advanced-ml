@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AMMA - Counsellor Clinical Command Dashboard</title>
+  <link rel="stylesheet" href="/static/css/counsellor.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🩺</text></svg>">
+  <!-- Chart.js for Longitudinal Trends and XAI Breakdown -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body class="counsellor-terminal">
+
+  <!-- Top Header -->
+  <header class="counsellor-header">
+    <div class="counsellor-brand">
+      <div class="brand-logo brand-logo-clinical" role="img" aria-label="AMMA care emblem">
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <defs><linearGradient id="ammaBloom" x1="8" y1="6" x2="56" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#b58bce"/><stop offset="1" stop-color="#6c9f91"/></linearGradient></defs>
+          <circle cx="32" cy="32" r="30" fill="url(#ammaBloom)"/>
+          <path d="M32 46C18 37 16 28 21 23c4-4 9-1 11 3 2-4 7-7 11-3 5 5 3 14-11 23Z" fill="#fffaf7"/>
+          <path d="M32 15v12M22 20l7 8M42 20l-7 8" stroke="#fffaf7" stroke-width="3" stroke-linecap="round" opacity=".9"/>
+        </svg>
+      </div>
+      <div class="counsellor-titles">
+        <h1>AMMA Counsellor Support Review</h1>
+        <div class="sub">ML-assisted chat-tone review, human-led support and welfare coordination</div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div id="liveSyncBadge" class="live-sync-indicator">
+        <span class="live-beacon"></span>
+        <span>WebSocket Telemetry: Synchronized Live</span>
+      </div>
+
+      <a href="/" class="btn-switch-user" target="_blank" title="Open User Terminal in New Tab">
+        <span>👵🏽</span> Open User Terminal
+      </a>
+    </div>
+  </header>
+
+  <!-- KPI Quick Stats Row -->
+  <section class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-icon">📊</div>
+      <div>
+        <div id="kpiTotalMonitors" class="kpi-val">5</div>
+        <div class="kpi-label">Active Monitored Terminals</div>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon" style="color:#ef4444;">🚨</div>
+      <div>
+        <div id="kpiCriticalCases" class="kpi-val" style="color:#f87171;">1</div>
+        <div class="kpi-label">Critical Escalations (>75 DDS)</div>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon" style="color:#06b6d4;">🎙️</div>
+      <div>
+        <div id="kpiAudioTranscripts" class="kpi-val">4</div>
+        <div class="kpi-label">Acoustic Voice Transcripts</div>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon" style="color:#10b981;">🛡️</div>
+      <div>
+        <div id="kpiDispatchedInterv" class="kpi-val" style="color:#34d399;">7</div>
+        <div class="kpi-label">Dispatched Interventions</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Dashboard Workspace -->
+  <div class="dashboard-layout">
+
+    <!-- Left Triage Sidebar -->
+    <aside class="triage-column">
+      <div class="triage-header">
+        <h3>Automated Triage</h3>
+        <span style="font-size:11px; color:var(--text-muted);">Ranked by Risk</span>
+      </div>
+      <div style="padding: 0 10px;">
+        <input type="text" id="triageSearchInput" placeholder="🔍 Filter cases by identifier..." class="triage-search-input" oninput="filterTriageCases(this.value)">
+      </div>
+      <ul id="triageList" class="triage-list">
+        <!-- Injected via counsellor.js -->
+      </ul>
+    </aside>
+
+    <!-- Right Workspace Area -->
+    <main class="workspace-column">
+
+      <section class="clinical-card contact-settings-card">
+        <div class="card-header-clean">
+          <div>
+            <h3>📞 Escalation Contact (maximum support tier)</h3>
+            <span class="microcopy">Displayed as an optional call choice to the user at the highest support signal. Never contacted automatically.</span>
+          </div>
+        </div>
+        <div class="contact-form-row">
+          <input id="counsellorNameInput" class="form-control" maxlength="100" placeholder="Counsellor / service name (optional)">
+          <input id="counsellorPhoneInput" class="form-control" maxlength="24" placeholder="Phone number, e.g. +91 98...">
+          <button class="btn-save-notes" onclick="saveCounsellorContact()">Save contact</button>
+        </div>
+      </section>
+
+      <!-- Escalation Prediction Warning Banner -->
+      <div id="escalationAlertBanner" class="escalation-alert-banner" style="display:none;">
+        <div class="alert-icon-wrap">⚡</div>
+        <div class="alert-info">
+          <h4 id="escalationTitle">CRISIS ESCALATION WARNING</h4>
+          <p id="escalationMessage">High acceleration in distress indicators detected over the last 48 hours.</p>
+        </div>
+      </div>
+
+      <!-- Active Case Header Overview -->
+      <div class="case-overview-card">
+        <div class="overview-left">
+          <div style="display:flex; align-items:center; gap: 14px; margin-bottom: 6px;">
+            <h2 id="caseDignifiedName" style="margin-bottom:0;">Loading Case File...</h2>
+            <button class="btn-export-report" onclick="openClinicalReportModal()">📄 Export Clinical Dossier</button>
+          </div>
+          <div class="overview-tags">
+            <span id="caseRefTag" class="tag-pill">REF-INIT</span>
+            <span id="caseCategoryTag" class="tag-pill">Evaluating</span>
+            <span id="caseRiskBadge" class="tag-pill" style="color:#fbbf24; border-color:#f59e0b;">Assessment in progress</span>
+          </div>
+        </div>
+
+        <div class="overview-gauge">
+          <div>
+            <div style="font-size:11.5px; color:var(--text-muted); text-align:right;">Dynamic Distress Score</div>
+            <div style="font-size:11px; color:#94a3b8; text-align:right;">Longitudinal Multi-Modal Index</div>
+          </div>
+          <div id="gaugeCircle" class="gauge-circle">
+            <div id="gaugeScoreVal" class="gauge-val">--</div>
+            <div class="gauge-unit">DDS / 100</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Longitudinal Trends & Voice Stress Audio Studio -->
+      <div class="grid-2col">
+
+        <!-- Longitudinal Trend Chart Card -->
+        <div class="clinical-card">
+          <div class="card-header-clean">
+            <h3>📈 Dynamic Distress Longitudinal Trend</h3>
+            <div class="btn-group-period">
+              <button class="btn-period active" id="btnPeriod7" onclick="setChartPeriod(7)">7-Day Observed</button>
+              <button class="btn-period" id="btnPeriod30" onclick="setChartPeriod(30)">Last 30 Observations</button>
+            </div>
+          </div>
+          <div style="height: 230px; position: relative;">
+            <canvas id="trendChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Voice recording and non-clinical descriptive features -->
+        <div class="clinical-card">
+          <div class="card-header-clean">
+            <h3>🎙️ Voice Stress Analytics & Playback</h3>
+            <span id="bioClassBadge" class="tag-pill" style="font-size:11px; color:#f87171; border-color:#ef4444;">Analyzing</span>
+          </div>
+
+          <div class="audio-player-box">
+            <audio id="caseAudioPlayer" controls></audio>
+            <div id="audioUrlNotice" style="font-size:11px; color:var(--text-muted);">
+              Loading audio recording...
+            </div>
+          </div>
+
+          <div class="biomarker-grid">
+            <div class="bio-card">
+              <div id="bioJitter" class="bio-val">--</div>
+              <div class="bio-label">Pitch Jitter (%)</div>
+            </div>
+            <div class="bio-card">
+              <div id="bioShimmer" class="bio-val">--</div>
+              <div class="bio-label">Shimmer (%)</div>
+            </div>
+            <div class="bio-card">
+              <div id="bioTremor" class="bio-val">--</div>
+              <div class="bio-label">Energy Tremor (dB)</div>
+            </div>
+            <div class="bio-card">
+              <div id="bioPause" class="bio-val">--</div>
+              <div class="bio-label">Pause Ratio (%)</div>
+            </div>
+            <div class="bio-card">
+              <div id="bioPitch" class="bio-val">--</div>
+              <div class="bio-label">Pitch F0 & Monotony</div>
+            </div>
+            <div class="bio-card">
+              <div id="bioStress" class="bio-val">--</div>
+              <div class="bio-label">Voice Stress (0-100)</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Section: TRACE Trauma Language & SUDS Habituation Telemetry -->
+      <div class="clinical-card" style="margin-bottom: 20px;">
+        <div class="card-header-clean">
+          <h3>📖 TRACE Trauma Language & SUDS Exposure Telemetry</h3>
+          <span style="font-size:11px; color:var(--text-muted);">EMNLP 2024 TRACE Taxonomy & Thousand Voices of Trauma (PE)</span>
+        </div>
+        <div class="grid-2col" style="gap: 15px; margin-top: 8px;">
+          <!-- Left: SUDS & Habituation Progress -->
+          <div style="background:var(--bg-card-light); border:1px solid var(--border-color); border-radius:8px; padding:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:700; font-size:13px;">Subjective Units of Distress Scale (SUDS)</span>
+              <span id="sudsValueBadge" class="tag-pill" style="font-size:12px; color:#38bdf8; border-color:#0284c7;">-- / 100</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-muted); margin-bottom:6px;">
+              <strong>Exposure Stage:</strong> <span id="sudsExposureStage" style="color:var(--text-bright);">Awaiting interaction</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-muted);">
+              <strong>Habituation Status:</strong> <span id="sudsHabituationStatus" style="color:var(--text-bright);">No active trauma dialogue yet</span>
+            </div>
+          </div>
+
+          <!-- Right: TRACE DSM-5 Cluster Badges -->
+          <div style="background:var(--bg-card-light); border:1px solid var(--border-color); border-radius:8px; padding:12px;">
+            <div style="font-weight:700; font-size:13px; margin-bottom:8px;">Active TRACE Symptom Clusters</div>
+            <div id="traceClusterPills" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+              <span class="tag-pill" style="color:var(--text-muted);">Awaiting text input</span>
+            </div>
+            <div id="traceSnippetsContainer" style="font-size:11px; color:var(--text-muted); max-height:70px; overflow-y:auto;">
+              <em>Evidence quotes from user messages will display here.</em>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Explainable AI & Interactive Semantic Knowledge Graph -->
+      <div class="grid-2col">
+
+        <!-- XAI Factor Attribution -->
+        <div class="clinical-card">
+          <div class="card-header-clean">
+            <h3>🧠 ML Support-Signal Inputs</h3>
+            <span style="font-size:11.5px; color:var(--text-muted);">Review aid; not diagnosis or calibrated risk</span>
+          </div>
+          <div style="height: 220px; position: relative;">
+            <canvas id="xaiChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Semantic Knowledge Graph -->
+        <div class="clinical-card">
+          <div class="card-header-clean">
+            <h3>🕸️ Semantic Clinical Knowledge Graph</h3>
+            <span style="font-size:11.5px; color:var(--text-muted);">Drag & inspect nodes</span>
+          </div>
+          <div class="kg-container">
+            <canvas id="kgCanvas"></canvas>
+            <div class="kg-legend">
+              <span><span class="legend-dot" style="background:#4f46e5;"></span>User</span>
+              <span><span class="legend-dot" style="background:#ef4444;"></span>Emotion</span>
+              <span><span class="legend-dot" style="background:#dc2626;"></span>Trigger</span>
+              <span><span class="legend-dot" style="background:#f97316;"></span>Somatic</span>
+              <span><span class="legend-dot" style="background:#10b981;"></span>Amma Anchor</span>
+              <span><span class="legend-dot" style="background:#2563eb;"></span>Intervention</span>
+            </div>
+          </div>
+          <!-- Generative Knowledge Graph Inspector -->
+          <div id="kgInspectorCard" class="kg-inspector-card" style="display:none;">
+            <div class="kg-inspector-header">
+              <span id="kgInspectTitle" class="kg-inspector-title">Node Clinical Insights</span>
+              <button onclick="closeKgInspector()" style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;">&times;</button>
+            </div>
+            <div id="kgInspectBody" class="kg-inspector-body"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Section: Clinical & Multi-Agency Interventions Dispatcher -->
+      <div class="clinical-card">
+        <div class="card-header-clean">
+          <h3>🛡️ Clinical, Legal & Welfare Intervention Dispatcher</h3>
+          <button class="btn-action-interv" onclick="openAddInterventionModal()">+ Add Custom Intervention</button>
+        </div>
+        <div id="interventionList" class="intervention-list">
+          <!-- Injected via counsellor.js -->
+        </div>
+      </div>
+
+      <!-- Section: Clinical Notes & Live Transcript -->
+      <div class="grid-2col">
+
+        <!-- Formal Clinical Notes -->
+        <div class="clinical-card">
+          <div class="card-header-clean">
+            <h3>📝 Counsellor Review Notes</h3>
+            <button class="btn-save-notes" onclick="saveClinicalNotes()">Save Notes</button>
+          </div>
+          <textarea id="clinicalNotesText" class="clinical-notes-area" placeholder="Record observed wording, behaviour change, support actions, follow-up and legal-aid status. Do not rely on this tool for diagnosis."></textarea>
+          <div style="font-size:11px; color:var(--text-muted);">
+            🔒 Encrypted & audit-logged in compliance with legal and clinical standards.
+          </div>
+        </div>
+
+        <!-- Conversational Transcript with Amma -->
+        <div class="clinical-card">
+          <div class="card-header-clean">
+            <h3>💬 Conversational Care Transcript</h3>
+            <span style="font-size:11.5px; color:var(--text-muted);">Chronological Log</span>
+          </div>
+          <div id="transcriptBox" class="transcript-box">
+            <!-- Injected via counsellor.js -->
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- Modal: Add Custom Intervention -->
+  <div id="addIntervModal" class="counsellor-modal-backdrop">
+    <div class="counsellor-modal-box">
+      <div class="counsellor-modal-header">
+        <h3>🛡️ Dispatch Multi-Agency Intervention</h3>
+        <button onclick="closeAddInterventionModal()" style="background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer;">&times;</button>
+      </div>
+      <div class="form-group">
+        <label>Intervention Title / Measure</label>
+        <input type="text" id="newIntervName" class="form-control" placeholder="e.g. Emergency Witness Security Escort">
+      </div>
+      <div class="form-group">
+        <label>Intervention Domain / Category</label>
+        <select id="newIntervType" class="form-control">
+          <option value="counselling">Psychological Counselling & Trauma Therapy</option>
+          <option value="protection">Witness Protection & Security Threat Review</option>
+          <option value="medical">Medical & Psychiatric Evaluation</option>
+          <option value="relocation">Safe Relocation & Transit Housing Support</option>
+          <option value="financial">DLSA Victim Compensation & Financial Grant</option>
+          <option value="legal">Legal Aid & Prosecution Coordination</option>
+          <option value="rehab">Social Rehabilitation & Livelihood Care</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Priority Level</label>
+        <select id="newIntervPriority" class="form-control">
+          <option value="IMMEDIATE">IMMEDIATE (Within 2-4 Hours)</option>
+          <option value="HIGH" selected>HIGH (Within 24 Hours)</option>
+          <option value="MEDIUM">MEDIUM (Routine Clinical Follow-up)</option>
+          <option value="LOW">LOW (Long-term Monitoring)</option>
+        </select>
+      </div>
+      <button class="btn-primary-action" onclick="submitNewIntervention()">Confirm & Dispatch Intervention</button>
+    </div>
+  </div>
+
+  <!-- Modal: Official Clinical Case Dossier Report -->
+  <div id="reportModal" class="counsellor-modal-backdrop">
+    <div class="counsellor-modal-box" style="max-width:750px;">
+      <div class="counsellor-modal-header">
+        <h3>📄 Printable Counsellor Support Review</h3>
+        <div style="display:flex; gap:8px;">
+          <button onclick="window.print()" class="btn-action-interv">🖨️ Print / Save PDF</button>
+          <button onclick="closeClinicalReportModal()" style="background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer;">&times;</button>
+        </div>
+      </div>
+
+      <!-- Printable Report Sheet -->
+      <div id="reportPrintArea" class="report-paper">
+        <div class="report-header">
+          <div class="report-title">
+            <h2>AMMA ML-Assisted Chat-Tone Support Review</h2>
+            <p>Human-review decision support - non-diagnostic and not legal advice</p>
+          </div>
+          <div style="text-align:right; font-size:11px; color:#64748b;">
+            <div>Confidential Dossier</div>
+            <div id="reportDateStamp">--</div>
+          </div>
+        </div>
+
+        <div class="report-section-title">Case Metadata & Triage Status</div>
+        <div class="report-grid">
+          <div><b>Identifier:</b> <span id="repId">--</span></div>
+          <div><b>Case Reference:</b> <span id="repRef">--</span></div>
+          <div><b>Domain / Category:</b> <span id="repCat">--</span></div>
+          <div><b>Dynamic Distress Score:</b> <span id="repDds" style="font-weight:bold; color:#ef4444;">--</span></div>
+          <div><b>Human-review tier:</b> <span id="repRisk">--</span></div>
+          <div><b>Longitudinal Velocity:</b> <span id="repVel">--</span></div>
+        </div>
+
+        <div class="report-section-title">Acoustic Vocal Biomarkers (PTSD-in-the-Wild DSP)</div>
+        <div class="report-grid">
+          <div><b>Pitch Jitter & Shimmer:</b> <span id="repJitter">--</span></div>
+          <div><b>Energy Tremor:</b> <span id="repTremor">--</span></div>
+          <div><b>Pause-to-Speech Ratio:</b> <span id="repPause">--</span></div>
+          <div><b>Acoustic Telemetry:</b> <span id="repClass">--</span></div>
+        </div>
+
+        <div class="report-section-title">Trained Model Output</div>
+        <div class="report-grid">
+          <div><b>Model:</b> <span id="repModel">--</span></div>
+          <div><b>Expressed chat tone:</b> <span id="repTone">--</span></div>
+          <div><b>Model confidence:</b> <span id="repToneConfidence">--</span></div>
+          <div><b>Observed change:</b> <span id="repBehaviourChange">--</span></div>
+        </div>
+
+        <div class="report-section-title">Model Input Contribution</div>
+        <div id="repXaiList" style="font-size:12px; margin-top:4px; line-height:1.6;"></div>
+
+        <div class="report-section-title">Reported Context & Legal-Support Information</div>
+        <div id="repContext" style="font-size:12px; margin-top:4px; line-height:1.6;"></div>
+
+        <div class="report-section-title">Multi-Agency Interventions</div>
+        <div id="repIntervList" style="font-size:12px; margin-top:4px;"></div>
+
+        <div class="report-section-title">Counsellor Review Notes</div>
+        <p id="repNotes" style="font-size:12px; line-height:1.6; margin-top:4px; font-style:italic; color:#334155;">--</p>
+        <p id="repLimitations" class="report-limitation">--</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/counsellor.js"></script>
+</body>
+</html>

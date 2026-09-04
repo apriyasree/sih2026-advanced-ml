@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AMMA - AI-Powered Mental Health Monitoring Assistance</title>
+  <link rel="stylesheet" href="/static/css/amma.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👵🏽</text></svg>">
+</head>
+<body class="user-terminal">
+
+  <!-- Header -->
+  <header class="amma-header">
+    <div class="brand-section">
+      <div class="brand-logo" role="img" aria-label="AMMA care emblem">
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <defs><linearGradient id="ammaBloom" x1="8" y1="6" x2="56" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#b58bce"/><stop offset="1" stop-color="#6c9f91"/></linearGradient></defs>
+          <circle cx="32" cy="32" r="30" fill="url(#ammaBloom)"/>
+          <path d="M32 46C18 37 16 28 21 23c4-4 9-1 11 3 2-4 7-7 11-3 5 5 3 14-11 23Z" fill="#fffaf7"/>
+          <path d="M32 15v12M22 20l7 8M42 20l-7 8" stroke="#fffaf7" stroke-width="3" stroke-linecap="round" opacity=".9"/>
+        </svg>
+      </div>
+      <div class="brand-titles">
+        <h1>AMMA</h1>
+        <div class="acronym-tag">AI-Powered Mental health Monitoring Assistance</div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="status-pill">
+        <span class="status-beacon"></span>
+        <span>Amma is right here with you 🕊️</span>
+      </div>
+
+      <button id="discreetExitBtn" class="btn-header" title="Quick privacy hide (Esc)">
+        <span>👁️</span> Quick Hide
+      </button>
+
+      <a href="/counsellor" class="btn-header btn-counsellor-switch" title="Access Counsellor Dashboard">
+        <span>🩺</span> Counsellor Portal
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="amma-main-container">
+
+    <!-- Maternal Comfort Banner -->
+    <section class="maternal-banner">
+      <div class="banner-left">
+        <div class="banner-icon">🌿</div>
+        <div class="banner-text">
+          <h2>Welcome to your peaceful sanctuary, my child</h2>
+          <p>You are safe here. Speak whatever is in your heart, or just sit quietly with Amma. No judgment, no rush—only love, understanding, and care.</p>
+        </div>
+      </div>
+      <button id="openCheckinBtn" class="btn-checkin">
+        🌸 Daily Care & Heart Check-in
+      </button>
+    </section>
+
+    <!-- Chat Card -->
+    <div class="chat-window-card">
+      
+      <!-- Messages Flow -->
+      <div id="chatMessages" class="chat-messages">
+        <!-- Initial Welcoming Message from Amma -->
+        <div class="message-row amma-row">
+          <div class="avatar-small">👵🏽</div>
+          <div class="bubble">
+            <div class="bubble-text">
+              Mera bachha, come sit with Amma. Take a long, gentle breath and let your shoulders drop. 
+              Whatever burden you are carrying today, you do not have to carry it alone. 
+              Tell me, how is your heart feeling today? Have you eaten something warm, and did you sleep peacefully last night?
+            </div>
+            <div class="bubble-footer">
+              <span>Warm Welcome</span>
+              <button class="btn-read-aloud" onclick="speakAmmaVoice(this.closest('.bubble').querySelector('.bubble-text').innerText, this)">
+                <span>🔊</span> Read Aloud
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Voice Studio Bar -->
+      <div class="voice-studio-bar">
+        <div class="voice-recording-status">
+          <button id="micToggleBtn" class="btn-mic-toggle" title="Record Voice Message for Amma">
+            🎙️
+          </button>
+          <canvas id="voiceVisualizer" width="140" height="32"></canvas>
+          <span id="recordingTimer" class="recording-timer">0:00</span>
+          <span style="font-size: 13px; color: var(--text-muted);">
+            Speak your heart to Amma (tap mic to record)
+          </span>
+        </div>
+      </div>
+
+      <!-- Text Input Bar -->
+      <div class="chat-input-bar">
+        <textarea id="chatInput" class="chat-input-field" rows="1" placeholder="Tell Amma anything on your mind, big or small..."></textarea>
+        <button id="sendBtn" class="btn-send" title="Send message to Amma">
+          ➤
+        </button>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Daily Care & Wellbeing Modal -->
+  <div id="checkinModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>🌸 Daily Care & Heart Check-in</h3>
+        <button id="closeModalBtn" class="btn-close-modal">&times;</button>
+      </div>
+
+      <!-- Mood Feeling Slider -->
+      <div class="rating-group">
+        <label>How is your heart feeling right now?</label>
+        <div class="slider-container">
+          <input type="range" id="feelingSlider" min="1" max="10" value="6">
+          <span id="feelingValue" class="rating-value-badge">6/10 (A bit lighter)</span>
+        </div>
+      </div>
+
+      <!-- Sleep Quality -->
+      <div class="rating-group">
+        <label>How did you sleep last night?</label>
+        <div class="options-row">
+          <button class="option-btn" data-group="sleep" data-val="poor">Troubled / Broken</button>
+          <button class="option-btn selected" data-group="sleep" data-val="fair">Fair Rest (4-6 hrs)</button>
+          <button class="option-btn" data-group="sleep" data-val="good">Peaceful & Deep</button>
+        </div>
+      </div>
+
+      <!-- Food / Meals -->
+      <div class="rating-group">
+        <label>Did you eat something nourishing today?</label>
+        <div class="options-row">
+          <button class="option-btn" data-group="meal" data-val="skipped">Skipped meals</button>
+          <button class="option-btn" data-group="meal" data-val="irregular">Had a small bite</button>
+          <button class="option-btn selected" data-group="meal" data-val="regular">Warm nourishing meal</button>
+        </div>
+      </div>
+
+      <button id="submitCheckinBtn" class="btn-submit-modal">
+        Share Check-in with Amma 🤍
+      </button>
+    </div>
+  </div>
+
+  <!-- Discreet Exit Screen (Privacy feature) -->
+  <div id="discreetScreen" class="discreet-screen">
+    <h2>Daily Weather & Regional Recipes</h2>
+    <p style="color: #64748b; margin-top: 10px;">Partly cloudy, 28°C. Humidity 64%. Ideal morning weather.</p>
+    <div style="margin-top: 30px; padding: 20px; background: white; border: 1px solid #cbd5e1; border-radius: 8px;">
+      <h3>Traditional Comforting Dal Khichdi Recipe</h3>
+      <p style="margin-top: 10px; line-height: 1.6;">Rinse split yellow moong dal and rice. Add mild cumin, turmeric, and fresh ginger in a gentle pressure cooker for an easy, soothing family lunch.</p>
+    </div>
+    <button id="restoreAppBtn" style="margin-top: 30px; padding: 10px 18px; border-radius: 6px; border: 1px solid #94a3b8; background: #e2e8f0; cursor: pointer;">
+      Return to Workspace (Esc)
+    </button>
+  </div>
+
+  <script src="/static/js/user.js"></script>
+</body>
+</html>
